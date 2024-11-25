@@ -164,3 +164,8 @@ cython_debug/
 old/
 .vscode/
 .DS_Store
+
+data/
+
+mlflow_experiments_store_sqlite/
+mydb.sqlite

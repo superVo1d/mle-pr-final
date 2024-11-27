@@ -166,6 +166,8 @@ old/
 .DS_Store
 
 data/
+tmp/
+artifacts/
 
 mlflow_experiments_store_sqlite/
 mydb.sqlite

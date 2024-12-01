@@ -1,0 +1,25 @@
+services:
+
+  app:
+    build: .
+    container_name: 'fastapi_app'
+    environment:
+      - ENVIRONMENT=dev
+      - WATCHFILES_FORCE_POLLING=true
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./utils:/app/utils
+    hostname: fastapi_app
+
+  prometheus:
+    image: prom/prometheus
+    container_name: 'prometheus'
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9090:9090
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+    hostname: prometheus

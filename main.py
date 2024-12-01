@@ -5,7 +5,7 @@ import pandas as pd
 from catboost import CatBoostClassifier
 import pickle
 import logging
-import classes
+from utils.classes import *
 from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO)

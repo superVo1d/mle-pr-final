@@ -171,3 +171,5 @@ tmp/
 mlflow_experiments_store_sqlite/
 mydb.sqlite
 catboost_info/
+
+airflow/

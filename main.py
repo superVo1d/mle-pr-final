@@ -1,11 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Optional
 import pandas as pd
 from catboost import CatBoostClassifier
 import pickle
 import logging
-from utils.classes import *
 from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO)
@@ -36,8 +35,13 @@ class FeatureStore:
         Трансформирует исходные данные и возвращает предсказание
         """
         processed_data = self.pipeline.transform(input_data)
+        processed_data = pd.DataFrame(processed_data, columns=['age', 'antiguedad',
+            'renta', 'fecha_dato', 'ncodpers', 'ind_empleado', 'pais_residencia', 'sexo',
+            'fecha_alta', 'ind_nuevo', 'indrel', 'indrel_1mes', 'tiprel_1mes', 'indresi',
+            'indext', 'canal_entrada', 'indfall', 'cod_prov', 'ind_actividad_cliente', 'segmento'])
+        predictions = self.model.predict(
+            processed_data[["ncodpers", "fecha_dato", "age", "renta", "sexo"]])
 
-        predictions = self.model.predict(processed_data)
         return predictions.tolist()
 
 feature_store = FeatureStore()
@@ -71,7 +75,31 @@ PRODUCT_MAP = {
 
 # Интерфейсы
 class ClientData(BaseModel):
-    features: Dict[str, float]
+    fecha_dato: str
+    ncodpers: int
+    ind_empleado: Optional[str]
+    pais_residencia: Optional[str]
+    sexo: Optional[str]
+    age: Optional[str]
+    fecha_alta: Optional[str]
+    ind_nuevo: Optional[int]
+    antiguedad: Optional[str]
+    indrel: Optional[float]
+    ult_fec_cli_1t: Optional[str]
+    indrel_1mes: Optional[str]
+    tiprel_1mes: Optional[str]
+    indresi: Optional[str]
+    indext: Optional[str]
+    conyuemp: Optional[str]
+    canal_entrada: Optional[str]
+    indfall: Optional[str]
+    tipodom: Optional[float]
+    cod_prov: Optional[float]
+    nomprov: Optional[str]
+    ind_actividad_cliente: Optional[float]
+    renta: Optional[float]
+    segmento: Optional[str]
+
 
 class PredictionResponse(BaseModel):
     predicted_products: List[str]
@@ -89,30 +117,25 @@ async def health_check():
     """
     Health check
     """
-    return {"status": "ok"}    
+    return {"status": "ok"}
 
-@app.post("/predict", response_model=List[PredictionResponse])
-def predict(data: List[ClientData]):
+@app.post("/predict", response_model=PredictionResponse)
+def predict(data: ClientData):
     """
     Возвращает предсказание банковских услуг на основе данных активности клиента
     """
     try:
-        # Convert input data to DataFrame
-        raw_input_data = pd.DataFrame([d.features for d in data])
+        input_dict = data.dict()
+        raw_input_data = pd.DataFrame([input_dict])
 
-        # Make predictions
         predictions = feature_store.predict(raw_input_data)
 
-        # Map predictions to product names
-        responses = []
-        for row in predictions:
-            predicted_products = [
-                PRODUCT_MAP[product]
-                for product, value in zip(PRODUCT_MAP.keys(), row)
-                if value == 1
-            ]
-            responses.append({"predicted_products": predicted_products})
+        predicted_products = [
+            PRODUCT_MAP[product]
+            for product, value in zip(PRODUCT_MAP.keys(), predictions[0])
+            if value == 1
+        ]
 
-        return responses
+        return {"predicted_products": predicted_products}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

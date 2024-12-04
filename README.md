@@ -87,8 +87,7 @@ curl http://127.0.0.1:8000/health
 ```
 curl -X POST "http://localhost:8000/predict" \
 -H "Content-Type: application/json" \
--d '[
-  {
+-d '{
     "fecha_dato": "2016-05-28",
     "ncodpers": 123456,
     "ind_empleado": "A",
@@ -113,34 +112,7 @@ curl -X POST "http://localhost:8000/predict" \
     "ind_actividad_cliente": 1.0,
     "renta": 87218.1,
     "segmento": "02 - PARTICULARES"
-  },
-  {
-    "fecha_dato": "2016-05-28",
-    "ncodpers": 789012,
-    "ind_empleado": "B",
-    "pais_residencia": "ES",
-    "sexo": "V",
-    "age": "29",
-    "fecha_alta": "2015-03-15",
-    "ind_nuevo": 1,
-    "antiguedad": "15",
-    "indrel": 1.0,
-    "ult_fec_cli_1t": null,
-    "indrel_1mes": "1.0",
-    "tiprel_1mes": "I",
-    "indresi": "S",
-    "indext": "N",
-    "conyuemp": null,
-    "canal_entrada": "KAT",
-    "indfall": "N",
-    "tipodom": 1.0,
-    "cod_prov": 50.0,
-    "nomprov": "ZARAGOZA",
-    "ind_actividad_cliente": 1.0,
-    "renta": 54000.0,
-    "segmento": "01 - TOP"
-  }
-]'
+  }'
 ```
 
 ### Airflow

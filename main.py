@@ -1,15 +1,20 @@
 from fastapi import FastAPI, HTTPException
+from prometheus_client import Counter, Histogram
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
+from requests import Request
 from typing import List, Optional
 import pandas as pd
 from catboost import CatBoostClassifier
 import pickle
 import logging
+import time
 from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Класс взаимодействия с моделью
 class FeatureStore:
     def __init__(self):
         self.model = None
@@ -43,8 +48,6 @@ class FeatureStore:
             processed_data[["ncodpers", "fecha_dato", "age", "renta", "sexo"]])
 
         return predictions.tolist()
-
-feature_store = FeatureStore()
 
 PRODUCT_MAP = {
     "ind_ahor_fin_ult1": "Сберегательный счёт",
@@ -112,6 +115,46 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+instrumentator = Instrumentator()
+instrumentator.instrument(app).expose(app)
+
+feature_store = FeatureStore()
+
+# Метрика задержки запросов
+REQUEST_LATENCY = Histogram(
+    'http_request_duration_seconds', 
+    'Histogram for the duration in seconds for request latency',
+    ['method', 'endpoint', 'status_code']
+)
+
+# Метрика количества запросов
+REQUEST_COUNT = Counter(
+    'http_requests_total', 
+    'Counter for total requests to the app',
+    ['method', 'endpoint', 'status_code']
+)
+
+# Метрика количества вызовов энпоинта с предсказаниями
+PREDICTION_COUNT = Counter(
+    'prediction_requests_total', 
+    'Counter for total prediction requests',
+    ['model_version', 'status']
+)
+
+# Снимаем общие метрики для всех запросов через специальный middleware
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    REQUEST_LATENCY.labels(request.method, request.url.path, response.status_code).observe(process_time)
+    REQUEST_COUNT.labels(request.method, request.url.path, response.status_code).inc()
+    return response
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
 @app.get("/health")
 async def health_check():
     """
@@ -124,6 +167,8 @@ def predict(data: ClientData):
     """
     Возвращает предсказание банковских услуг на основе данных активности клиента
     """
+    model_version = "1.0"
+
     try:
         input_dict = data.dict()
         raw_input_data = pd.DataFrame([input_dict])
@@ -136,6 +181,10 @@ def predict(data: ClientData):
             if value == 1
         ]
 
+        PREDICTION_COUNT.labels(model_version, "success").inc()
+
         return {"predicted_products": predicted_products}
     except Exception as e:
+        PREDICTION_COUNT.labels(model_version, "failure").inc()
+
         raise HTTPException(status_code=500, detail=str(e)) from e
